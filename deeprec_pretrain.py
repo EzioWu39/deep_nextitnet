@@ -72,6 +72,10 @@ def main():
                         help='Sample from top k predictions')
     parser.add_argument('--beta1', type=float, default=0.9,
                         help='hyperpara-Adam')
+    parser.add_argument('--modelpath', type=str, default="model",
+                        help='dataset name')
+    parser.add_argument('--dataset', type=str, default="ml30",
+                        help='dataset name')
     parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
                         help='data path')
     parser.add_argument('--eval_iter', type=int, default=3000,
@@ -92,6 +96,12 @@ def main():
     all_samples = dl.item
     items = dl.item_dict
     print("len(items)", len(items))
+
+    dataset = args.dataset
+    modelpath = args.modelpath
+
+    if not os.path.exists(modelpath):
+        os.makedirs(modelpath)
 
     if args.padtoken in items:
         padtoken = items[args.padtoken]  # is the padding token in the beggining of the sentence
@@ -149,6 +159,7 @@ def main():
     numIters = 1
     max_mrr = 0
     max_hit = 0
+    save_path = os.path.join(modelpath, dataset)
 
     for iter in range(model_para['iterations']):
         batch_no = 0
@@ -268,7 +279,7 @@ def main():
                     print("Save model!  ndcg_5:", ndcg)
                     print("Save model!  ndcg_20:", ndcg_20)
 
-                    saver.save(sess, "model/ml30/ml30_model_{}_{}".format(iter, numIters))
+                    saver.save(sess, os.path.join(save_path, "{}_model_{}_{}".format(dataset, iter, numIters)))
                 # print "Accuracy mrr_5:",#5
                 # print "Accuracy mrr_20:",   # 5
                 # print "Accuracy hit_5:", #5

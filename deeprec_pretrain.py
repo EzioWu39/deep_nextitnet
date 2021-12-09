@@ -15,7 +15,7 @@ import sys
 #                       "Data/Models/generation_model/model_nextitnet.ckpt".format(iter, numIters))
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,2,5,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 #os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 config = tf.ConfigProto()
@@ -145,10 +145,6 @@ def main():
     sess = tf.Session()
     init=tf.global_variables_initializer()
     sess.run(init)
-    model_dir = './model/ml30/ml30_model_17_54000'
-    tvars = tf.trainable_variables()
-    saver = tf.train.Saver(tvars)
-    saver.restore(sess, model_dir)
 
     saver = tf.train.Saver(max_to_keep=3)
 

@@ -93,9 +93,9 @@ def main():
     dl = data_pretrain.Data_Loader({'model_type': 'generator', 'dir_name': args.datapath})
     all_samples = dl.item
     items = dl.item_dict
-    print("len(items)"),len(items)
+    print("len(items)", len(items))
 
-    if items.has_key(args.padtoken):
+    if args.padtoken in items:
         padtoken = items[args.padtoken]  # is the padding token in the beggining of the sentence
     else:
         # padtoken = sys.maxint
@@ -170,14 +170,14 @@ def main():
                 })
             end = time.time()
             if numIters % 100 == 0:
-                print ("LOSS: {}\t STEP:{}").format(
-                    loss, numIters)
+                print ("LOSS: {}\t STEP:{}".format(
+                    loss, numIters))
             if numIters % args.eval_iter == 0:
                 print ("-------------------------------------------------------train1")
-                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}").format(
-                    loss, iter, batch_no, numIters, train_set.shape[0] / batch_size)
-                print ("TIME FOR BATCH"), end - start
-                print ("TIME FOR ITER (mins)"), (end - start) * (train_set.shape[0] / batch_size) / 60.0
+                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
+                    loss, iter, batch_no, numIters, train_set.shape[0] / batch_size))
+                print ("TIME FOR BATCH", end - start)
+                print ("TIME FOR ITER (mins)", (end - start) * (train_set.shape[0] / batch_size) / 60.0)
 
             if numIters % args.eval_iter == 0:
                 print ("-------------------------------------------------------test1")
@@ -189,8 +189,8 @@ def main():
                     feed_dict={
                         itemrec.input_predict: item_batch
                     })
-                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}").format(
-                    loss, iter, batch_no, numIters, valid_set.shape[0] / batch_size)
+                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
+                    loss, iter, batch_no, numIters, valid_set.shape[0] / batch_size))
 
             batch_no += 1
 
@@ -265,12 +265,12 @@ def main():
                 if mrr > max_mrr:
                     max_mrr = mrr
                     # max_hit = hit
-                    print ("Save model!  Max mrr_5:"), max_mrr
-                    print ("Save model!  mrr_20:"), mrr_20
-                    print ("Save model!  Max hit_5:"), hit
-                    print ("Save model!  hit_20:"), hit_20
-                    print ("Save model!  ndcg_5:"), ndcg
-                    print ("Save model!  ndcg_20:"), ndcg_20
+                    print ("Save model!  Max mrr_5:", max_mrr)
+                    print ("Save model!  mrr_20:", mrr_20)
+                    print ("Save model!  Max hit_5:", hit)
+                    print ("Save model!  hit_20:", hit_20)
+                    print ("Save model!  ndcg_5:", ndcg)
+                    print ("Save model!  ndcg_20:", ndcg_20)
 
                     saver.save(sess, "model/ml30/ml30_model_{}_{}".format(iter, numIters))
                 # print "Accuracy mrr_5:",#5

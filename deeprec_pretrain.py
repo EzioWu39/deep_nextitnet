@@ -148,10 +148,9 @@ def main():
 
     saver = tf.train.Saver(max_to_keep=3)
 
-    #numIters = 1
+    numIters = 1
     max_mrr = 0
     max_hit = 0
-    numIters = 54001
 
     #for iter in range(model_para['iterations']):
     for iter in range(18, model_para['iterations']):

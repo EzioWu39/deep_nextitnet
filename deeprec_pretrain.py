@@ -2,13 +2,13 @@ import tensorflow as tf
 import data_pretrain
 import generator_deep
 import utils
-import shutil
 import time
 import math
-import eval
 import numpy as np
 import argparse
-import sys
+# import sys
+# import shutil
+# import eval
 # You can run it directly, first training and then evaluating
 # nextitrec_generate.py can only be run when the model parameters are saved, i.e.,
 #  save_path = saver.save(sess,
@@ -20,7 +20,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-#config.gpu_options.per_process_gpu_memory_fraction = 0.5
 session = tf.Session(config=config)
 
 sess= tf.Session()
@@ -73,7 +72,6 @@ def main():
                         help='Sample from top k predictions')
     parser.add_argument('--beta1', type=float, default=0.9,
                         help='hyperpara-Adam')
-    #history_sequences_20181014_fajie_smalltest.csv
     parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
                         help='data path')
     parser.add_argument('--eval_iter', type=int, default=3000,
@@ -143,7 +141,7 @@ def main():
 
     # sess= tf.Session(config=tf.ConfigProto(log_device_placement=True))
     sess = tf.Session()
-    init=tf.global_variables_initializer()
+    init = tf.global_variables_initializer()
     sess.run(init)
 
     saver = tf.train.Saver(max_to_keep=3)
@@ -152,8 +150,7 @@ def main():
     max_mrr = 0
     max_hit = 0
 
-    #for iter in range(model_para['iterations']):
-    for iter in range(18, model_para['iterations']):
+    for iter in range(model_para['iterations']):
         batch_no = 0
         batch_size = model_para['batch_size']
         while (batch_no + 1) * batch_size < train_set.shape[0]:
@@ -169,17 +166,17 @@ def main():
                 })
             end = time.time()
             if numIters % 100 == 0:
-                print ("LOSS: {}\t STEP:{}".format(
+                print("LOSS: {}\t STEP:{}".format(
                     loss, numIters))
             if numIters % args.eval_iter == 0:
-                print ("-------------------------------------------------------train1")
-                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
+                print("-------------------------------------------------------train1")
+                print("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
                     loss, iter, batch_no, numIters, train_set.shape[0] / batch_size))
-                print ("TIME FOR BATCH", end - start)
-                print ("TIME FOR ITER (mins)", (end - start) * (train_set.shape[0] / batch_size) / 60.0)
+                print("TIME FOR BATCH", end - start)
+                print("TIME FOR ITER (mins)", (end - start) * (train_set.shape[0] / batch_size) / 60.0)
 
             if numIters % args.eval_iter == 0:
-                print ("-------------------------------------------------------test1")
+                print("-------------------------------------------------------test1")
                 if (batch_no + 1) * batch_size < valid_set.shape[0]:
                     # it is well written here when train_set is much larger than valid_set, 'if' may not hold. it will not have impact on the final results.
                     item_batch = valid_set[(batch_no) * batch_size: (batch_no + 1) * batch_size, :]
@@ -188,7 +185,7 @@ def main():
                     feed_dict={
                         itemrec.input_predict: item_batch
                     })
-                print ("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
+                print("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
                     loss, iter, batch_no, numIters, valid_set.shape[0] / batch_size))
 
             batch_no += 1
@@ -264,12 +261,12 @@ def main():
                 if mrr > max_mrr:
                     max_mrr = mrr
                     # max_hit = hit
-                    print ("Save model!  Max mrr_5:", max_mrr)
-                    print ("Save model!  mrr_20:", mrr_20)
-                    print ("Save model!  Max hit_5:", hit)
-                    print ("Save model!  hit_20:", hit_20)
-                    print ("Save model!  ndcg_5:", ndcg)
-                    print ("Save model!  ndcg_20:", ndcg_20)
+                    print("Save model!  Max mrr_5:", max_mrr)
+                    print("Save model!  mrr_20:", mrr_20)
+                    print("Save model!  Max hit_5:", hit)
+                    print("Save model!  hit_20:", hit_20)
+                    print("Save model!  ndcg_5:", ndcg)
+                    print("Save model!  ndcg_20:", ndcg_20)
 
                     saver.save(sess, "model/ml30/ml30_model_{}_{}".format(iter, numIters))
                 # print "Accuracy mrr_5:",#5

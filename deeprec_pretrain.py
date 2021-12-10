@@ -140,7 +140,7 @@ def main():
         'kernel_size': 3,
         'learning_rate': 0.0001,
         'batch_size': 256,
-        'iterations': 100,
+        'iterations': 10,
         'is_negsample': True # False denotes no negative sampling
     }
 

@@ -145,6 +145,7 @@ def main():
                         help='Warm up k steps')
     args = parser.parse_args()
 
+    dataset = args.dataset
     modelpath = args.modelpath
     if not os.path.exists(modelpath):
         os.makedirs(modelpath)
@@ -224,7 +225,7 @@ def main():
     tvars = tf.trainable_variables()
     var_to_save = [var for var in tvars if not re.search(r"decoder_layer_\d+", var.name)]
     model_dir = args.premodel
-    assignment_map, suc_assignment_map = get_assignment_map_from_checkpoint_for_theseus(tvars,model_dir)
+    assignment_map, suc_assignment_map = get_assignment_map_from_checkpoint_for_theseus(tvars, model_dir)
     tf.train.init_from_checkpoint(model_dir, assignment_map)
     tf.train.init_from_checkpoint(model_dir, suc_assignment_map)
 
@@ -238,6 +239,7 @@ def main():
     numIters = 1
     max_mrr = 0
     max_hit = 0
+    save_path = modelpath
 
     #for iter in range(19, model_para['iterations']):
     for iter in range(model_para['iterations']):
@@ -357,8 +359,7 @@ def main():
                     print("Save model!  ndcg_5:", ndcg)
                     print("Save model!  ndcg_20:", ndcg_20)
 
-                    saver.save(sess,
-                               "model/ml30/replace/linear/ml30_replace_linear_model_{}_{}".format(iter, numIters))
+                    saver.save(sess, os.path.join(modelpath, "{}_suc_model_{}_{}".format(dataset, iter, numIters)))
                 # print "Accuracy mrr_5:",#5
                 # print "Accuracy mrr_20:",   # 5
                 # print "Accuracy hit_5:", #5

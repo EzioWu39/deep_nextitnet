@@ -78,8 +78,7 @@ def nextitnet_residual_block_suc(input_, dilation, layer_id,
         #input_ln=tf.contrib.layers.layer_norm(dilated_conv,reuse=not train, trainable=train)  #performance is not good, paramter wrong?
         relu1 = tf.nn.relu(input_ln)
 
-
-        dilated_conv = conv1d(relu1,  residual_channels,
+        dilated_conv = conv1d(relu1, residual_channels,
                               dilation, kernel_size,
                               causal=causal,
                               name="dilated_conv2"

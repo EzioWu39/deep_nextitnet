@@ -157,7 +157,7 @@ def main():
     init = tf.global_variables_initializer()
     sess.run(init)
 
-    saver = tf.train.Saver(max_to_keep=3)
+    saver = tf.train.Saver(max_to_keep=1)
 
     numIters = 1
     max_mrr = 0

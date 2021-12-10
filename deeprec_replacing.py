@@ -1,14 +1,14 @@
 import tensorflow as tf
 import data_pretrain
-import generator_deep
+import generator_deep_replacing
 import utils
 import time
 import math
 import numpy as np
 import argparse
-# import sys
-# import shutil
-# import eval
+import collections
+import re
+import sys
 # You can run it directly, first training and then evaluating
 # nextitrec_generate.py can only be run when the model parameters are saved, i.e.,
 #  save_path = saver.save(sess,
@@ -17,18 +17,68 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 #os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
+#config.gpu_options.per_process_gpu_memory_fraction = 0.5
 session = tf.Session(config=config)
 
-sess= tf.Session()
+sess = tf.Session()
 
 
+def optimizer_for_nextitnet_theseus(loss, global_steps,init_lr, betal,finetune_suc=False):
+    #global_step = tf.train.get_or_create_global_step()
+    # learning_rate = tf.constant(value=init_lr, shape=[], dtype=tf.float32)
+    tvars = tf.trainable_variables()
+    optimizer = tf.train.AdamOptimizer(init_lr, beta1= betal)
+    tvars_update = [var for var in tvars if re.search(r"suc_layer_\d+", var.name)]
+    train_op = optimizer.minimize(loss, global_step=global_steps, var_list=tvars_update)
+    return train_op
 
-#Strongly suggest running codes on GPU with more than 10G memory!!!
-#if your session data is very long e.g, >50, and you find it may not have very strong internal sequence properties, you can consider generate subsequences
-def generatesubsequence(train_set,padtoken):
+
+def get_assignment_map_from_checkpoint_for_theseus(tvars, init_checkpoint):
+    """Compute the union of the current variables and checkpoint variables."""
+    initialized_variable_names = {}
+    name_to_variable = collections.OrderedDict()
+    tvars = tf.trainable_variables()
+    with tf.Session() as sess:
+        for var in tvars:
+            name = var.name
+            m = re.match("^(.*):\\d+$", name)
+            if m is not None:
+                name = m.group(1)
+            name_to_variable[name] = var
+    init_vars = tf.train.list_variables(init_checkpoint)
+    assignment_map = collections.OrderedDict()
+    suc_assignment_map = collections.OrderedDict()
+    for x in init_vars:
+        (name, var) = (x[0], x[1])
+        if name not in name_to_variable:
+            # fw.write(name)
+            # fw.write("\n")
+            continue
+        if re.search(r"layer_\d+", name):
+            suc_layer_var_name = re.sub(r"layer_", "suc_layer_", name)
+            if suc_layer_var_name in name_to_variable.keys():
+                assignment_map[name] = name_to_variable[name]
+                initialized_variable_names[suc_layer_var_name] = 1
+                initialized_variable_names[suc_layer_var_name + ":0"] = 1
+                suc_assignment_map[name] = name_to_variable[suc_layer_var_name]
+                initialized_variable_names[name] = 1
+                initialized_variable_names[name + ":0"] = 1
+            else:
+                assignment_map[name] = name_to_variable[name]
+                initialized_variable_names[name] = 1
+                initialized_variable_names[name + ":0"] = 1
+        else:
+            assignment_map[name] = name_to_variable[name]
+            initialized_variable_names[name] = 1
+            initialized_variable_names[name + ":0"] = 1
+    return assignment_map, suc_assignment_map
+
+
+# Strongly suggest running codes on GPU with more than 10G memory!!!
+# if your session data is very long e.g, >50, and you find it may not have very strong internal sequence properties, you can consider generate subsequences
+def generatesubsequence(train_set, padtoken):
     # create subsession only for training
     subseqtrain = []
     for i in range(len(train_set)):
@@ -41,7 +91,7 @@ def generatesubsequence(train_set,padtoken):
         padcount = copyseq.count(padtoken)  # the number of padding elements
         copyseq = copyseq[padcount:]  # the remaining elements
         lenseq_nopad = len(copyseq)
-        # session l ens=100 shortest subsession=5 realvalue+95 0
+        # session lens=100 shortest subsession=5 realvalue+95 0
         if (lenseq_nopad - 4) < 1:
             subseqtrain.append(seq)
             continue
@@ -63,8 +113,9 @@ def generatesubsequence(train_set,padtoken):
     np.random.seed(10)
     shuffle_train = np.random.permutation(np.arange(len(x_train)))
     x_train = x_train[shuffle_train]
-    print ("generating subsessions is done!")
+    print("generating subsessions is done!")
     return x_train
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -72,8 +123,10 @@ def main():
                         help='Sample from top k predictions')
     parser.add_argument('--beta1', type=float, default=0.9,
                         help='hyperpara-Adam')
+    parser.add_argument('--premodel', type=str, default="model",
+                        help='pretrained model path')
     parser.add_argument('--modelpath', type=str, default="model",
-                        help='save path')
+                        help='model save path')
     parser.add_argument('--dataset', type=str, default="ml30",
                         help='dataset name')
     parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
@@ -88,23 +141,21 @@ def main():
                         help='whether generating a subsessions, e.g., 12345-->01234,00123,00012  It may be useful for very some very long sequences')
     parser.add_argument('--padtoken', type=str, default='0',
                         help='is the padding token in the beggining of the sequence')
+    parser.add_argument('--k', type=int, default=30000,
+                        help='Warm up k steps')
     args = parser.parse_args()
 
-
-
-    dl = data_pretrain.Data_Loader({'model_type': 'generator', 'dir_name': args.datapath})
-    all_samples = dl.item
-    items = dl.item_dict
-    print("len(items)", len(items))
-
-    dataset = args.dataset
     modelpath = args.modelpath
-
     if not os.path.exists(modelpath):
         os.makedirs(modelpath)
         print("create folder {}".format(modelpath))
     else:
         print("folder {} has existed".format(modelpath))
+
+    dl = data_pretrain.Data_Loader({'model_type': 'generator', 'dir_name': args.datapath})
+    all_samples = dl.item
+    items = dl.item_dict
+    print("len(items)", len(items))
 
     if args.padtoken in items:
         padtoken = items[args.padtoken]  # is the padding token in the beggining of the sentence
@@ -133,55 +184,80 @@ def main():
         # if you use nextitnet_residual_block_one, you can tune and i suggest [1, 2, 4, ], for a trial
         # when you change it do not forget to change it in nextitrec_generate.py
         # if you find removing residual network, the performance does not obviously decrease, then I think your data does not have strong seqeunce. Change a dataset and try again.
-        'dilations': [1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, ],
+        'dilations': [1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4,],
+        'suc_dilations': [1,4,1,4,1,4,1,4,1,4,1,4,1,4,1,4],
         'kernel_size': 3,
         'learning_rate': 0.0001,
         'batch_size': 256,
         'iterations': 100,
-        'is_negsample': True # False denotes no negative sampling
+        'compress_ratio': 2,
+        'is_negsample': True ,#False denotes no negative sampling
+        'strategy': "linear"
     }
+    #successor
+    succ_layers = len(model_para['dilations'])//model_para['compress_ratio']
+    model_para['succ_layers'] = succ_layers
+    model_para['base_replace_prob'] = 0.5
+    model_para['k'] = (1-model_para['base_replace_prob'])/args.k
 
-    itemrec = generator_deep.NextItNet_Decoder(model_para)
-    itemrec.train_graph(model_para['is_negsample'])
-    optimizer = tf.train.AdamOptimizer(model_para['learning_rate'], beta1=args.beta1).minimize(itemrec.loss)
-    itemrec.predict_graph(model_para['is_negsample'],reuse=True)
+    itemrec = generator_deep_replacing.NextItNet_Decoder(model_para)
+    itemrec.train_graph(model_para['is_negsample'], finetune_suc=True)
 
+    #optimization
+    global_steps = tf.train.get_or_create_global_step()
+    #optimizer = tf.train.AdamOptimizer(model_para['learning_rate'], beta1=args.beta1).minimize(itemrec.loss)
+
+    train_op = optimizer_for_nextitnet_theseus(itemrec.loss, global_steps, model_para['learning_rate'],
+                                                                  args.beta1)
+
+    itemrec.predict_graph(model_para['is_negsample'], reuse=True, finetune_suc=False)
+    #itemrec.predict_graph_finetune(model_para['is_negsample'],reuse=True, finetune_suc = True)
 
     tf.add_to_collection("dilate_input", itemrec.dilate_input)
     tf.add_to_collection("context_embedding", itemrec.context_embedding)
 
-
-
     # sess= tf.Session(config=tf.ConfigProto(log_device_placement=True))
+
+    # init weight from bert pretrained checkpoints
+    # first, build dict_maps
+    # Second, initializing global vars
+    tvars = tf.trainable_variables()
+    var_to_save = [var for var in tvars if not re.search(r"decoder_layer_\d+", var.name)]
+    model_dir = args.premodel
+    assignment_map, suc_assignment_map = get_assignment_map_from_checkpoint_for_theseus(tvars,model_dir)
+    tf.train.init_from_checkpoint(model_dir, assignment_map)
+    tf.train.init_from_checkpoint(model_dir, suc_assignment_map)
+
     sess = tf.Session()
     init = tf.global_variables_initializer()
     sess.run(init)
+    saver = tf.train.Saver(var_to_save, max_to_keep=1)
 
-    saver = tf.train.Saver(max_to_keep=3)
 
+    #numIters = 60000
     numIters = 1
     max_mrr = 0
     max_hit = 0
-    save_path = os.path.join(modelpath, dataset)
 
+    #for iter in range(19, model_para['iterations']):
     for iter in range(model_para['iterations']):
         batch_no = 0
         batch_size = model_para['batch_size']
         while (batch_no + 1) * batch_size < train_set.shape[0]:
-
             start = time.time()
 
             item_batch = train_set[batch_no * batch_size: (batch_no + 1) * batch_size, :]
             _, loss, results = sess.run(
-                [optimizer, itemrec.loss,
+                [train_op, itemrec.loss,
                  itemrec.arg_max_prediction],
                 feed_dict={
                     itemrec.itemseq_input: item_batch
                 })
             end = time.time()
+
             if numIters % 100 == 0:
-                print("LOSS: {}\t STEP:{}".format(
-                    loss, numIters))
+                print("LOSS: {}\t STEP:{}".format(loss, numIters))
+
             if numIters % args.eval_iter == 0:
                 print("-------------------------------------------------------train1")
                 print("LOSS: {}\tITER: {}\tBATCH_NO: {}\t STEP:{}\t total_batches:{}".format(
@@ -203,7 +279,6 @@ def main():
                     loss, iter, batch_no, numIters, valid_set.shape[0] / batch_size))
 
             batch_no += 1
-
 
             if numIters % args.eval_iter == 0:
                 batch_no_test = 0
@@ -282,7 +357,8 @@ def main():
                     print("Save model!  ndcg_5:", ndcg)
                     print("Save model!  ndcg_20:", ndcg_20)
 
-                    saver.save(sess, os.path.join(save_path, "{}_model_{}_{}".format(dataset, iter, numIters)))
+                    saver.save(sess,
+                               "model/ml30/replace/linear/ml30_replace_linear_model_{}_{}".format(iter, numIters))
                 # print "Accuracy mrr_5:",#5
                 # print "Accuracy mrr_20:",   # 5
                 # print "Accuracy hit_5:", #5

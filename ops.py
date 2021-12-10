@@ -2,7 +2,6 @@ import tensorflow as tf
 import math
 import numpy as np
 
-
 # config e.g. dilations: [1,4,16,] In most cases[1,4,] is enough
 def nextitnet_residual_block(input_, dilation, layer_id,
                              residual_channels, kernel_size,
@@ -51,6 +50,37 @@ def nextitnet_residual_block_rezero(input_, dilation, layer_id,
 
         dilated_conv = conv1d(relu1,  residual_channels,
                               2 *dilation, kernel_size,
+                              causal=causal,
+                              name="dilated_conv2"
+                              )
+
+        input_ln = layer_norm(dilated_conv, name="layer_norm2", trainable=train)
+        #input_ln = tf.contrib.layers.layer_norm(dilated_conv, reuse=not train, trainable=train)
+        relu1 = tf.nn.relu(input_ln)
+
+        return input_ + relu1*rez
+
+def nextitnet_residual_block_suc(input_, dilation, layer_id,
+                            residual_channels, kernel_size,
+                            causal=True, train=True):
+    resblock_type = "decoder"
+    layer_type = "suc"
+    resblock_name = "nextitnet_residual_block{}_{}_layer_{}_{}".format(resblock_type, layer_type,layer_id, dilation)
+    with tf.variable_scope(resblock_name,reuse=tf.AUTO_REUSE):
+        rez = tf.get_variable('rez', [1],
+                               initializer=tf.constant_initializer(0.0))
+        dilated_conv = conv1d(input_, residual_channels,
+                              dilation, kernel_size,
+                              causal=causal,
+                              name="dilated_conv1"
+                              )
+        input_ln = layer_norm(dilated_conv, name="layer_norm1", trainable=train)
+        #input_ln=tf.contrib.layers.layer_norm(dilated_conv,reuse=not train, trainable=train)  #performance is not good, paramter wrong?
+        relu1 = tf.nn.relu(input_ln)
+
+
+        dilated_conv = conv1d(relu1,  residual_channels,
+                              dilation, kernel_size,
                               causal=causal,
                               name="dilated_conv2"
                               )

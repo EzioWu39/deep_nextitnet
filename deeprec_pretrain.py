@@ -78,9 +78,9 @@ def main():
                         help='dataset name')
     parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
                         help='data path')
-    parser.add_argument('--eval_iter', type=int, default=100,
+    parser.add_argument('--eval_iter', type=int, default=3000,
                         help='Sample generator output evry x steps')
-    parser.add_argument('--save_para_every', type=int, default=190,
+    parser.add_argument('--save_para_every', type=int, default=3000,
                         help='save model parameters every')
     parser.add_argument('--tt_percentage', type=float, default=0.1,
                         help='0.2 means 80% training 20% testing')
@@ -121,9 +121,6 @@ def main():
     # Split train/test set
     dev_sample_index = -1 * int(args.tt_percentage * float(len(all_samples)))
     train_set, valid_set = all_samples[:dev_sample_index], all_samples[dev_sample_index:]
-
-    train_set = train_set[:50000]
-    valid_set = valid_set[:5000]
 
     if args.is_generatesubsession:
         train_set = generatesubsequence(train_set,padtoken)

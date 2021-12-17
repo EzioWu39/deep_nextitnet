@@ -72,11 +72,11 @@ def main():
                         help='Sample from top k predictions')
     parser.add_argument('--beta1', type=float, default=0.9,
                         help='hyperpara-Adam')
-    parser.add_argument('--modelpath', type=str, default="model",
+    parser.add_argument('--modelpath', type=str, default="model/pretrained",
                         help='save path')
     parser.add_argument('--dataset', type=str, default="ml30",
                         help='dataset name')
-    parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
+    parser.add_argument('--datapath', type=str, default="data/movielen_30.csv",
                         help='data path')
     parser.add_argument('--eval_iter', type=int, default=3000,
                         help='Sample generator output evry x steps')

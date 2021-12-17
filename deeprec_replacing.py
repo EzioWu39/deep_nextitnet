@@ -125,11 +125,11 @@ def main():
                         help='hyperpara-Adam')
     parser.add_argument('--premodel', type=str, default="model",
                         help='pretrained model path')
-    parser.add_argument('--modelpath', type=str, default="model",
+    parser.add_argument('--modelpath', type=str, default="model/successor",
                         help='model save path')
     parser.add_argument('--dataset', type=str, default="ml30",
                         help='dataset name')
-    parser.add_argument('--datapath', type=str, default="data/ml/movielen_30.csv",
+    parser.add_argument('--datapath', type=str, default="data/movielen_30.csv",
                         help='data path')
     parser.add_argument('--eval_iter', type=int, default=3000,
                         help='Sample generator output evry x steps')
